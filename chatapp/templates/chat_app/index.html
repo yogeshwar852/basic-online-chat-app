@@ -1,0 +1,204 @@
+{% load staticfiles %}
+<html>
+<head>
+	
+</head>
+<body>
+	<table width="100%" height="100%" border="1" align="center" valign="center">
+		<tr><td colspan="2" height="6%"><h3>Chat Window</h3></td></tr>
+		<tr><td colspan="2" height="6%"> From(Your Name or Id):&nbsp;&nbsp;<input type="text" name="sender" id="sender"><br></td></tr>
+		<tr><td width='85%'>
+			<div id="chat_view" >
+				
+				&nbsp;
+			</div>
+		</td>
+		<td>
+			<div>Online Users</div>
+			<ul id="users">                   	
+			</ul>
+		</td>
+	</tr>
+</table>
+<div id="chat_list"></div>
+<style type="text/css">
+.chat_box{
+	border-style:solid;
+	border-width:medium;
+	width:200px;
+	height:310px;
+	float:left;
+	margin-left:2px;
+
+}
+#msg{
+	width:200px;
+	height:200px;
+	overflow:auto;
+}
+#new_msg_text
+{
+	width:200px;
+	height:50px;
+	resize: none;
+}
+#close_button{
+	width:20px;
+	height:20px;
+	padding-left:2px;
+}
+#users{
+	list-style: none;
+	padding:0px;
+}
+</style>
+
+<script type="text/javascript" src="{% static 'chat_app/jquery-3.3.1.min.js' %}"></script>
+<script type="text/javascript">
+	$(document).ready(function(){
+		window.setInterval(function() {
+			viewMsg();
+			viewOnlineUsers();
+			createNewChatBox();
+			
+		},1000);
+	});
+	
+	function creatNewBox(receiver)
+	{
+		var newbox ="<div class='chat_box' id='chat_box_"+receiver+"'>"+
+		"<div id='chat_header'><input type='text' style='width:180px;' name='receiver[]' READONLY value='"+receiver+"' id='receiver'><span onclick='closeWindow($(this))'>X</span></div>"+
+		"<div  height='20%' id='msg' >"+
+		"<br><br><br></div>"+
+		"<div id='newmsg'><textarea rows='4' cols='10' id='new_msg_text'>&nbsp;</textarea></div>"+
+		"<div><input type='button' value='Send' id='btn' onclick='saveMsg($(this))'></div>"+
+		"</div>";
+		
+		return newbox;
+	}
+	
+	function createNewChatBox()
+	{
+		var data="sender="+$("#sender").val();
+		$.ajax({
+			type: 'POST',
+			url: 'http://127.0.0.1:8000/get_chat/',
+			data: data,
+			success: function(data){
+				if(data.status=='true')
+				{
+					$('#chat_list').html('');
+					data.data.forEach(function(user,index){
+						if(user.sender!='')
+						{
+							$('#chat_list').append("<input type='text' name='chat_users[]' value='"
+								+user.sender+"'>");
+							viewBox(user.sender);
+						}     
+					});
+
+				}
+			}	           
+		});
+
+	}
+
+	function viewBox(receiver)
+	{
+		if($.trim($("#sender").val())==$.trim(receiver))
+			return;
+		$(document).ready(function(){
+			var flag=false;
+			$("input[name='receiver[]']").each(function(){
+				
+				if($(this).val()==receiver)
+					{flag=true;}
+			});
+			if(flag==false)$("#chat_view").append(creatNewBox(receiver));           
+		});
+	}
+	
+	function viewOnlineUsers()
+	{
+		var data='sender='+$("#sender").val();
+		$.ajax({
+			type: 'POST',
+			url: 'http://127.0.0.1:8000/view_users/',
+			data: data,
+			success: function(data){
+				if(data.status=="true")
+				{ 
+					$('#users').html('');
+					data.data.forEach(function(user,index){
+						if(user.user_id!='')
+						{
+							$('#users').append("<li><a onclick=\"viewBox('"+user.user_id+"')\">"
+								+user.user_id+"</a></li>");
+						}     
+					});
+
+				}
+			}
+			
+		});
+		
+	}
+	function closeWindow(obj)
+	{
+		obj.parent().parent().remove();
+	}
+	
+	function viewMsg()
+	{
+		var sender=$("#sender").val();
+		$("input[name='receiver[]']").each(function(){
+			var receiver=$(this).val();
+			var data="sender="+sender+"&receiver="+receiver;
+			$.ajax({
+				type: 'POST',
+				url: 'http://127.0.0.1:8000/view_msg/',
+				data: data,
+				success: function(data){
+					if(data.status=='true')
+					{
+						$("#chat_box_"+receiver).find("#msg").html('');
+						data.data.forEach(function(message,index){
+							//alert(message.msg);
+							//if(message.user_id!='' && message.msg!='')
+							{
+								$("#chat_box_"+receiver).find("#msg").append("<table><tr>"
+									+"<td>"+message.sender+": "+message.msg+"</td>"
+									+"</tr></table>");
+							}     
+						});
+
+					}
+				}
+				
+			});
+		});
+	}
+	
+	function saveMsg(obj)
+	{
+
+		var receiver=obj.parent().parent().find("#receiver").val();
+		
+		var sender=$("#sender").val();
+		if(sender=='') return false;
+		var msg=obj.parent().parent().find("#new_msg_text").val();
+		
+		$.ajax({
+			type: 'POST',
+			url: 'http://127.0.0.1:8000/save_msg/',
+			data: {"receiver":receiver,"sender":sender,"msg":msg},
+			success: function(){
+				obj.parent().parent().find("#new_msg_text").val('');
+			}
+			
+		});
+	}
+</script>
+
+</body>
+</html>
